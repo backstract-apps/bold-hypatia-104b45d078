@@ -4,20 +4,54 @@ on:
   push:
     branches: [ master ]
 
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy:
     name: Build Docker image and Push to AWS ECR and Deploy to EKS
-    runs-on: ubuntu-latest
+    runs-on: prod-eks-runners
+    timeout-minutes: 45
+    permissions:
+      id-token: write
+      contents: read
+      
 
     env:
       AWS_REGION: ap-south-1
       EKS_CLUSTER: backstract-dev
+      ECR_REPO: backstract_apps
+      STATIC_TAG: nostalgic-beaver-26a2a5222a
+      INFRA_DIR: infra/k8s
+      
       NAMESPACE: apps-prod
 
     steps:
     - name: Check out code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 1
+          lfs: false
+          
+    - name: Debug GitHub ref
+      run: |
+        echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+        echo "GITHUB_REF=$GITHUB_REF"
+        echo "GITHUB_REF_NAME=$GITHUB_REF_NAME"
+        echo "GITHUB_EVENT_NAME=$GITHUB_EVENT_NAME"
 
+    - name: Configure AWS credentials (OIDC)
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: arn:aws:iam::216084506783:role/GitHubActionsDeployRole
+        aws-region: ${{ env.AWS_REGION }}
+          
+    - name: Sanity check AWS identity
+      run: |
+        set -euo pipefail
+        aws sts get-caller-identity
+          
     - name: Setup job
       uses: ./.github/actions/log-streamer
       with:
@@ -42,63 +76,96 @@ jobs:
         endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
         token: none
 
-    - name: Install kubectl
-      uses: azure/setup-kubectl@v4
-      with:
-        version: 'v1.31.0'
+    # - name: Install kubectl
+    #   uses: azure/setup-kubectl@v4
+    #   with:
+    #     version: 'v1.31.0'
 
-    - name: Configure AWS credentials
-      uses: aws-actions/configure-aws-credentials@v1
-      with:
-        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-region: ${{ env.AWS_REGION }}
+    # - name: Configure AWS credentials
+    #   uses: aws-actions/configure-aws-credentials@v1
+    #   with:
+    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+    #     aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
       id: login-ecr
-      uses: aws-actions/amazon-ecr-login@v1
+      uses: aws-actions/amazon-ecr-login@v2
 
     # 🚀 Enable Buildx
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
-    # 🚀 Cache layers
-    - name: Cache Docker layers
-      uses: actions/cache@v3
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
+    # # 🚀 Cache layers
+    # - name: Cache Docker layers
+    #   uses: actions/cache@v3
+    #   with:
+    #     path: /tmp/.buildx-cache
+    #     key: ${{ runner.os }}-buildx-${{ github.sha }}
+    #     restore-keys: |
+    #       ${{ runner.os }}-buildx-
 
     # 🚀 Build image
-    - name: Build Docker image
-      uses: ./.github/actions/log-streamer
-      with:
-        step_name: "Build, tag, and push docker image to Amazon ECR"
-        command: |
-          docker buildx build \
-            --cache-from=type=local,src=/tmp/.buildx-cache \
-            --cache-to=type=local,dest=/tmp/.buildx-cache \
-            -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:${{ github.sha }} \
-            -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:bold-hypatia-104b45d078 \
-            -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:latest \
-            --load .
-        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-        token: none
+    # - name: Build Docker image
+    #   uses: ./.github/actions/log-streamer
+    #   with:
+    #     step_name: "Build, tag, and push docker image to Amazon ECR"
+    #     command: |
+    #       docker buildx build \
+    #         --cache-from=type=local,src=/tmp/.buildx-cache \
+    #         --cache-to=type=local,dest=/tmp/.buildx-cache \
+    #         -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:${{ github.sha }} \
+    #         -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:bold-hypatia-104b45d078 \
+    #         -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:latest \
+    #         --load .
+    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+    #     token: none
 
     # 🚀 Push ONLY required tags
-    - name: Push Docker image to ECR
-      uses: ./.github/actions/log-streamer
-      with:
-        step_name: "Build, tag, and push docker image to Amazon ECR"
-        command: |
-          docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:${{ github.sha }}
-          docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:bold-hypatia-104b45d078
-          docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:latest
-        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-        token: none
+    # - name: Push Docker image to ECR
+    #   uses: ./.github/actions/log-streamer
+    #   with:
+    #     step_name: "Build, tag, and push docker image to Amazon ECR"
+    #     command: |
+    #       docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:${{ github.sha }}
+    #       docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:bold-hypatia-104b45d078
+    #       docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:latest
+    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+    #     token: none
 
+    - name: Build and push to ECR (BuildKit + registry cache)
+      timeout-minutes: 25
+      run: |
+        set -euo pipefail
+        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+        REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE="${REGISTRY}/${ECR_REPO}"
+        SHA_TAG="${GITHUB_SHA}"
+
+        docker buildx create --use --name builder >/dev/null 2>&1 || docker buildx use builder
+
+        docker buildx build \
+          --platform linux/amd64 \
+          -t "${IMAGE}:${SHA_TAG}" \
+          -t "${IMAGE}:${STATIC_TAG}" \
+          --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+          --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
+          --push \
+          .
+          
+
+    - name: Update kubeconfig to point to EKS
+      timeout-minutes: 8
+      run: |
+        set -euo pipefail
+        aws eks update-kubeconfig --name "${EKS_CLUSTER}" --region "${AWS_REGION}"
+
+    - name: Sanity check kubectl access
+      run: |
+        set -euo pipefail
+        kubectl get ns
+
+          
     - name: Update kubeconfig
       uses: ./.github/actions/log-streamer
       with:

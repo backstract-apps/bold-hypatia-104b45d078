@@ -168,14 +168,17 @@ jobs:
         kubectl get ns
 
           
-    - name: Update kubeconfig
-      uses: ./.github/actions/log-streamer
-      with:
-        step_name: "Update kube config to point to EKS"
-        command: |
-          aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
-        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-        token: none
+    # - name: Update kubeconfig
+    #   uses: ./.github/actions/log-streamer
+    #   with:
+    #     step_name: "Update kube config to point to EKS"
+    #     command: |
+    #       aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
+    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+    #     token: none
+
+    - name: Update kube config to point to EKS
+      run: aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
 
     - name: Create Kubernetes secret dynamically
       run: |

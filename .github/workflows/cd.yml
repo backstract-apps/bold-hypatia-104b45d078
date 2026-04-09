@@ -148,7 +148,9 @@ jobs:
           --platform linux/amd64 \
           -t "${IMAGE}:${SHA_TAG}" \
           -t "${IMAGE}:${STATIC_TAG}" \
+          --cache-from "type=local,src=/tmp/.buildx-cache" \
           --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+          --cache-to "type=local,dest=/tmp/.buildx-cache" \
           --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
           --push \
           .

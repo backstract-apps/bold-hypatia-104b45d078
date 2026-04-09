@@ -52,29 +52,29 @@ jobs:
         set -euo pipefail
         aws sts get-caller-identity
           
-    - name: Setup job
-      uses: ./.github/actions/log-streamer
-      with:
-        step_name: "Setup job"
-        command: |
-          echo "Runner environment: $(uname -a)"
-          echo "Disk space: $(df -h / | tail -1)"
-          echo "Memory: $(free -h)"
-        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-        token: none
+    # - name: Setup job
+    #   uses: ./.github/actions/log-streamer
+    #   with:
+    #     step_name: "Setup job"
+    #     command: |
+    #       echo "Runner environment: $(uname -a)"
+    #       echo "Disk space: $(df -h / | tail -1)"
+    #       echo "Memory: $(free -h)"
+    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+    #     token: none
 
-    - name: Checkout code
-      uses: ./.github/actions/log-streamer
-      with:
-        step_name: "Checkout code"
-        command: |
-          echo "Code checkout completed"
-          echo "Repository: ${{ github.repository }}"
-          echo "Branch: ${{ github.ref_name }}"
-          echo "Commit SHA: ${{ github.sha }}"
-          ls -la
-        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-        token: none
+    # - name: Checkout code
+    #   uses: ./.github/actions/log-streamer
+    #   with:
+    #     step_name: "Checkout code"
+    #     command: |
+    #       echo "Code checkout completed"
+    #       echo "Repository: ${{ github.repository }}"
+    #       echo "Branch: ${{ github.ref_name }}"
+    #       echo "Commit SHA: ${{ github.sha }}"
+    #       ls -la
+    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+    #     token: none
 
     # - name: Install kubectl
     #   uses: azure/setup-kubectl@v4

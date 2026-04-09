@@ -28,6 +28,8 @@ runs:
         set -eo pipefail
 
         buffer=()
+        buffer_size=0
+        max_buffer_lines=5
 
         flush() {
           if [ "${#buffer[@]}" -eq 0 ]; then
@@ -45,20 +47,22 @@ runs:
             '{run_id: $run_id, step: $step, repository: $repo, branch: $branch, commit_sha: $commit_sha, actor: $actor, logs: $logs}')
 
           curl -s -X POST "$STREAM_ENDPOINT" \
+            --connect-timeout 2 \
+            --max-time 5 \
             -H "Content-Type: application/json" \
             -H "Authorization: Bearer $STREAM_TOKEN" \
-            -d "$json" > /dev/null || true
+            -d "$json" > /dev/null 2>&1 &
 
           buffer=()
+          buffer_size=0
         }
 
         command_exit_code=0
         temp_file=$(mktemp)
         script_file=$(mktemp)
 
-        trap 'rm -f "$temp_file" "$script_file"' EXIT
+        trap 'rm -f "$temp_file" "$script_file"; wait' EXIT
 
-        # Write command safely into temp script
         cat <<'EOF' > "$script_file"
         ${{ inputs.command }}
         EOF
@@ -72,18 +76,17 @@ runs:
 
         while IFS= read -r line; do
           buffer+=("$line")
-          if [ "${#buffer[@]}" -ge 10 ]; then
+          buffer_size=$((buffer_size + 1))
+
+          if [ "$buffer_size" -ge "$max_buffer_lines" ]; then
             flush
           fi
         done < "$temp_file"
 
         flush
 
-        if [[ "$STEP_NAME" == "Deploy to AWS EKS Cluster" ]]; then
-          if [ "${#buffer[@]}" -eq 0 ]; then
-            buffer+=("Step completed with exit code: $command_exit_code")
-          fi
-          flush
+        if [[ "$STEP_NAME" == "Deploy to AWS EKS Cluster" ]] || [[ "$STEP_NAME" == "Build and push to ECR" ]]; then
+          wait
         fi
 
         exit "$command_exit_code"

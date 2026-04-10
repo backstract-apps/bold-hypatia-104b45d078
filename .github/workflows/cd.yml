@@ -22,7 +22,7 @@ jobs:
       AWS_REGION: ap-south-1
       EKS_CLUSTER: backstract-dev
       ECR_REPO: backstract_apps
-      STATIC_TAG: nostalgic-beaver-26a2a5222a
+      STATIC_TAG: bold-hypatia-104b45d078
       INFRA_DIR: infra/k8s
       
       NAMESPACE: apps-prod

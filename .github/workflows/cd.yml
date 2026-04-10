@@ -28,6 +28,12 @@ jobs:
       NAMESPACE: apps-prod
 
     steps:
+    - name: Checkout actual code
+      uses: actions/checkout@v4
+      with:
+          fetch-depth: 1
+          lfs: false
+          
     - name: Setup job
       uses: ./.github/actions/log-streamer
       with:
@@ -38,13 +44,6 @@ jobs:
           echo "Memory: $(free -h)"
         endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
         token: none
-
-        
-    - name: Checkout actual code
-      uses: actions/checkout@v4
-      with:
-          fetch-depth: 1
-          lfs: false
 
     #this step for stramer      
     - name: Checkout code

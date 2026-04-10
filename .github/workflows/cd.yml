@@ -104,18 +104,6 @@ jobs:
         endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
         token: none
 
-    # 🚀 Push ONLY required tags
-    # - name: Push Docker image to ECR
-    #   uses: ./.github/actions/log-streamer
-    #   with:
-    #     step_name: "Build, tag, and push docker image to Amazon ECR"
-    #     command: |
-    #       docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:${{ github.sha }}
-    #       docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:bold-hypatia-104b45d078
-    #       docker push ${{ steps.login-ecr.outputs.registry }}/backstract_apps:latest
-    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-    #     token: none
-
     - name: Build and push to ECR (BuildKit + registry cache)
       uses: ./.github/actions/log-streamer
       timeout-minutes: 25
@@ -156,17 +144,14 @@ jobs:
         kubectl get ns
 
           
-    # - name: Update kubeconfig
-    #   uses: ./.github/actions/log-streamer
-    #   with:
-    #     step_name: "Update kube config to point to EKS"
-    #     command: |
-    #       aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
-    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-    #     token: none
-
-    - name: Update kube config to point to EKS
-      run: aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
+    - name: Update kubeconfig
+      uses: ./.github/actions/log-streamer
+      with:
+        step_name: "Update kube config to point to EKS"
+        command: |
+          aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
+        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+        token: none
 
     - name: Create Kubernetes secret dynamically
       run: |

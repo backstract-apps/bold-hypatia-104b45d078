@@ -34,7 +34,7 @@ jobs:
           fetch-depth: 1
           lfs: false
           
-    - name: Setup job
+    - name: Setup job for  log streamer
       uses: ./.github/actions/log-streamer
       with:
         step_name: "Setup job"
@@ -46,7 +46,7 @@ jobs:
         token: none
 
     #this step for stramer      
-    - name: Checkout code
+    - name: Checkout code for log streamer
       uses: ./.github/actions/log-streamer
       with:
         step_name: "Checkout code"
@@ -77,20 +77,6 @@ jobs:
       run: |
         set -euo pipefail
         aws sts get-caller-identity
-          
-  
-
-    # - name: Install kubectl
-    #   uses: azure/setup-kubectl@v4
-    #   with:
-    #     version: 'v1.31.0'
-
-    # - name: Configure AWS credentials
-    #   uses: aws-actions/configure-aws-credentials@v1
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: ${{ env.AWS_REGION }}
 
     - name: Login to Amazon ECR
       id: login-ecr
@@ -109,21 +95,14 @@ jobs:
         restore-keys: |
           ${{ runner.os }}-buildx-
 
-    # 🚀 Build image
-    # - name: Build Docker image
-    #   uses: ./.github/actions/log-streamer
-    #   with:
-    #     step_name: "Build, tag, and push docker image to Amazon ECR"
-    #     command: |
-    #       docker buildx build \
-    #         --cache-from=type=local,src=/tmp/.buildx-cache \
-    #         --cache-to=type=local,dest=/tmp/.buildx-cache \
-    #         -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:${{ github.sha }} \
-    #         -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:bold-hypatia-104b45d078 \
-    #         -t ${{ steps.login-ecr.outputs.registry }}/backstract_apps:latest \
-    #         --load .
-    #     endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
-    #     token: none
+    #🚀 Build image
+    - name: Build Docker image for log streamer
+      uses: ./.github/actions/log-streamer
+      with:
+        step_name: "Build, tag, and push docker image to Amazon ECR"
+        command: |
+        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+        token: none
 
     # 🚀 Push ONLY required tags
     # - name: Push Docker image to ECR
@@ -138,26 +117,31 @@ jobs:
     #     token: none
 
     - name: Build and push to ECR (BuildKit + registry cache)
+      uses: ./.github/actions/log-streamer
       timeout-minutes: 25
-      run: |
-        set -euo pipefail
-        AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-        REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-        IMAGE="${REGISTRY}/${ECR_REPO}"
-        SHA_TAG="${GITHUB_SHA}"
-
-        docker buildx create --use --name builder >/dev/null 2>&1 || docker buildx use builder
-
-        docker buildx build \
-          --platform linux/amd64 \
-          -t "${IMAGE}:${SHA_TAG}" \
-          -t "${IMAGE}:${STATIC_TAG}" \
-          --cache-from "type=local,src=/tmp/.buildx-cache" \
-          --cache-from "type=registry,ref=${IMAGE}:buildcache" \
-          --cache-to "type=local,dest=/tmp/.buildx-cache" \
-          --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
-          --push \
+      with:
+        step_name: "Build, tag, and push docker image to Amazon ECR"
+        command: |
+          set -euo pipefail
+          AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+          IMAGE="${REGISTRY}/${ECR_REPO}"
+          SHA_TAG="${GITHUB_SHA}"
+  
+          docker buildx create --use --name builder >/dev/null 2>&1 || docker buildx use builder
+  
+          docker buildx build \
+            --platform linux/amd64 \
+            -t "${IMAGE}:${SHA_TAG}" \
+            -t "${IMAGE}:${STATIC_TAG}" \
+            --cache-from "type=local,src=/tmp/.buildx-cache" \
+            --cache-from "type=registry,ref=${IMAGE}:buildcache" \
+            --cache-to "type=local,dest=/tmp/.buildx-cache" \
+            --cache-to "type=registry,ref=${IMAGE}:buildcache,mode=max" \
+            --push \
           .
+        endpoint: https://cc1fbde45ead-in-south-01.mayson.dev/sigma/api/v1/logs/github
+        token: none
           
 
     - name: Update kubeconfig to point to EKS
